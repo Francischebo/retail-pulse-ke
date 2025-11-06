@@ -5,14 +5,25 @@ export const Footer = () => {
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">M</span>
-              </div>
-              <span className="text-xl font-bold">MolabsPOS</span>
+              <img src={new URL('../assets/logo.png', import.meta.url).href} alt="Molabs Tech Solutions" className="h-10" />
             </div>
             <p className="text-sm text-muted-foreground">
               The complete POS solution for Kenyan retailers. Built for Africa, powered by innovation.
             </p>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                <strong>Email:</strong>{" "}
+                <a href="mailto:molabstechsolutions@gmail.com" className="hover:text-primary transition-colors">
+                  molabstechsolutions@gmail.com
+                </a>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <strong>WhatsApp:</strong>{" "}
+                <a href="https://wa.me/254740411091" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                  +254 740 411 091
+                </a>
+              </p>
+            </div>
           </div>
 
           <div>
