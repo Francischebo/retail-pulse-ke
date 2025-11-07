@@ -5,7 +5,7 @@ export const Footer = () => {
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <img src={new URL('../assets/logo.png', import.meta.url).href} alt="Molabs Tech Solutions" className="h-10" />
+              <img src={new URL('../assets/molabs-logo.png', import.meta.url).href} alt="Molabs Tech Solutions" className="h-10" />
             </div>
             <p className="text-sm text-muted-foreground">
               The complete POS solution for Kenyan retailers. Built for Africa, powered by innovation.

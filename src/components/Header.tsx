@@ -6,12 +6,15 @@ export const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <nav className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <img src={new URL('../assets/logo.png', import.meta.url).href} alt="Molabs Tech Solutions" className="h-10" />
+          <img src={new URL('../assets/molabs-logo.png', import.meta.url).href} alt="Molabs Tech Solutions" className="h-16 md:h-20" />
         </div>
 
         <div className="hidden md:flex items-center gap-6">
           <a href="#features" className="text-sm font-medium hover:text-primary transition-colors">
             Features
+          </a>
+          <a href="#demo" className="text-sm font-medium hover:text-primary transition-colors">
+            Demo
           </a>
           <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">
             Pricing
@@ -25,10 +28,10 @@ export const Header = () => {
           <a href="#contact" className="text-sm font-medium hover:text-primary transition-colors">
             Contact
           </a>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => window.location.href = '/auth'}>
             Sign In
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => window.location.href = '/auth'}>
             Get Started
           </Button>
         </div>

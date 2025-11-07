@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 const plans = [
   {
     name: "Starter",
-    price: "9,999",
+    price: "1,500",
     period: "per month",
     description: "Perfect for small shops and kiosks",
     features: [
@@ -21,7 +21,7 @@ const plans = [
   },
   {
     name: "Professional",
-    price: "24,999",
+    price: "3,000",
     period: "per month",
     description: "Ideal for growing supermarkets",
     features: [
@@ -40,7 +40,7 @@ const plans = [
   {
     name: "Enterprise",
     price: "Custom",
-    period: "tailored pricing",
+    period: "contact for quotation",
     description: "For chains and large retailers",
     features: [
       "Unlimited POS terminals",
@@ -66,7 +66,7 @@ export const Pricing = () => {
             Simple, Transparent Pricing
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Start with a 30-day free trial. No credit card required.
+            Start with a 15-day free trial. No credit card required.
           </p>
         </div>
 
