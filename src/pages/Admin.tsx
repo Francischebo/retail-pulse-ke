@@ -136,7 +136,7 @@ export default function Admin() {
               <CardDescription>Add and manage your inventory</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full">Manage Products</Button>
+              <Button className="w-full" onClick={() => navigate("/admin/products")}>Manage Products</Button>
             </CardContent>
           </Card>
 
@@ -156,7 +156,7 @@ export default function Admin() {
               <CardDescription>Manage cashiers and staff</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full">Manage Users</Button>
+              <Button className="w-full" onClick={() => navigate("/admin/users")}>Manage Users</Button>
             </CardContent>
           </Card>
 
