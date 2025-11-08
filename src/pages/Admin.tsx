@@ -140,6 +140,14 @@ export default function Admin() {
             </CardHeader>
             <CardContent className="space-y-2">
               <Button 
+                variant="default" 
+                className="w-full justify-start"
+                onClick={() => navigate("/admin/pos")}
+              >
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Point of Sale
+              </Button>
+              <Button 
                 variant="outline" 
                 className="w-full justify-start"
                 onClick={() => navigate("/admin/products")}
@@ -159,7 +167,7 @@ export default function Admin() {
                 variant="outline" 
                 className="w-full justify-start"
               >
-                <ShoppingCart className="mr-2 h-4 w-4" />
+                <BarChart3 className="mr-2 h-4 w-4" />
                 View Sales
               </Button>
             </CardContent>
