@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, LogOut, Package, ShoppingCart, Users, BarChart3 } from "lucide-react";
+import { LowStockAlert } from "@/components/admin/LowStockAlert";
 
 export default function Admin() {
   const [isLoading, setIsLoading] = useState(true);
@@ -125,6 +126,42 @@ export default function Admin() {
             <CardContent>
               <div className="text-2xl font-bold">KES 0</div>
               <p className="text-xs text-muted-foreground">No sales today</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+          <LowStockAlert />
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+              <CardDescription>Access frequently used features</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate("/admin/products")}
+              >
+                <Package className="mr-2 h-4 w-4" />
+                Manage Products
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate("/admin/users")}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Manage Users
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+              >
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                View Sales
+              </Button>
             </CardContent>
           </Card>
         </div>
