@@ -56,7 +56,7 @@ const PaymentDialog = ({ open, onOpenChange, cartItems, onComplete }: PaymentDia
       // Create sale record
       const { data: sale, error: saleError } = await supabase
         .from("sales")
-        .insert({
+        .insert([{
           cashier_id: user.id,
           subtotal,
           tax,
@@ -66,7 +66,7 @@ const PaymentDialog = ({ open, onOpenChange, cartItems, onComplete }: PaymentDia
           payment_reference: paymentMethod === "mpesa" ? mpesaReference : undefined,
           customer_name: customerName || undefined,
           customer_phone: customerPhone || mpesaPhone || undefined,
-        })
+        }])
         .select()
         .single();
 

@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Search, AlertTriangle, Edit, Trash2, ArrowLeft } from "lucide-react";
+import { Loader2, Plus, Search, AlertTriangle, Edit, Trash2, ArrowLeft, FolderOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -26,6 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ProductForm } from "@/components/admin/ProductForm";
+import BulkCategoryAssignment from "@/components/admin/BulkCategoryAssignment";
 
 interface Product {
   id: string;
@@ -35,6 +38,7 @@ interface Product {
   barcode: string | null;
   batch_number: string | null;
   category: string | null;
+  category_id: string | null;
   price: number;
   cost: number | null;
   stock_quantity: number;
@@ -44,10 +48,19 @@ interface Product {
   created_at: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 export default function Products() {
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [showBulkAssignment, setShowBulkAssignment] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
@@ -56,6 +69,7 @@ export default function Products() {
 
   useEffect(() => {
     checkAuthAndLoadProducts();
+    loadCategories();
   }, []);
 
   const checkAuthAndLoadProducts = async () => {
@@ -80,14 +94,44 @@ export default function Products() {
     try {
       const { data, error } = await supabase
         .from("products")
-        .select("*")
+        .select(`
+          *,
+          categories (
+            id,
+            name
+          )
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setProducts(data || []);
+      
+      const productsWithCategory = (data || []).map((product: any) => ({
+        ...product,
+        category: product.categories?.name || null,
+      }));
+      
+      setProducts(productsWithCategory);
     } catch (error: any) {
       toast({
         title: "Error loading products",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name")
+        .order("name");
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error loading categories",
         description: error.message,
         variant: "destructive",
       });
@@ -121,11 +165,34 @@ export default function Products() {
     }
   };
 
-  const filteredProducts = products.filter((product) =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.barcode?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts(prev =>
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedProducts.length === filteredProducts.length) {
+      setSelectedProducts([]);
+    } else {
+      setSelectedProducts(filteredProducts.map(p => p.id));
+    }
+  };
+
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.barcode?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = selectedCategoryId === "all" || 
+      selectedCategoryId === "uncategorized" 
+        ? !product.category_id 
+        : product.category_id === selectedCategoryId;
+    
+    return matchesSearch && (selectedCategoryId === "all" || matchesCategory);
+  });
 
   const lowStockProducts = products.filter(
     (p) => p.stock_quantity <= p.low_stock_threshold
@@ -176,6 +243,10 @@ export default function Products() {
             <p className="text-muted-foreground">Manage your inventory and products</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/admin/categories")}>
+              <FolderOpen className="mr-2 h-4 w-4" />
+              Categories
+            </Button>
             <Button variant="outline" onClick={() => navigate("/admin")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Dashboard
@@ -186,6 +257,35 @@ export default function Products() {
             </Button>
           </div>
         </div>
+
+        {selectedProducts.length > 0 && (
+          <Card className="mb-6 border-primary/50 bg-primary/10">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">
+                  {selectedProducts.length} product(s) selected
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowBulkAssignment(true)}
+                  >
+                    <FolderOpen className="mr-2 h-4 w-4" />
+                    Assign Category
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedProducts([])}
+                  >
+                    Clear Selection
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {lowStockProducts.length > 0 && (
           <Card className="mb-6 border-amber-500/50 bg-amber-500/10">
@@ -217,14 +317,30 @@ export default function Products() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>All Products ({products.length})</CardTitle>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search products..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+              <div className="flex gap-2">
+                <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="uncategorized">Uncategorized</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search products..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -232,6 +348,12 @@ export default function Products() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>SKU/Barcode</TableHead>
                   <TableHead>Category</TableHead>
@@ -244,6 +366,12 @@ export default function Products() {
               <TableBody>
                 {filteredProducts.map((product) => (
                   <TableRow key={product.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedProducts.includes(product.id)}
+                        onCheckedChange={() => toggleProductSelection(product.id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>
                       <div className="text-sm">
@@ -251,7 +379,13 @@ export default function Products() {
                         {product.barcode && <div>Bar: {product.barcode}</div>}
                       </div>
                     </TableCell>
-                    <TableCell>{product.category || "-"}</TableCell>
+                    <TableCell>
+                      {product.category ? (
+                        <Badge variant="outline">{product.category}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>KES {product.price.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge
@@ -296,6 +430,16 @@ export default function Products() {
             </Table>
           </CardContent>
         </Card>
+
+        <BulkCategoryAssignment
+          open={showBulkAssignment}
+          onOpenChange={setShowBulkAssignment}
+          selectedProductIds={selectedProducts}
+          onComplete={() => {
+            setSelectedProducts([]);
+            loadProducts();
+          }}
+        />
 
         <AlertDialog open={!!deleteProduct} onOpenChange={() => setDeleteProduct(null)}>
           <AlertDialogContent>

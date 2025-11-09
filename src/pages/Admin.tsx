@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogOut, Package, ShoppingCart, Users, BarChart3 } from "lucide-react";
+import { Loader2, LogOut, Package, ShoppingCart, Users, BarChart3, FolderOpen } from "lucide-react";
 import { LowStockAlert } from "@/components/admin/LowStockAlert";
 
 export default function Admin() {
@@ -154,6 +154,14 @@ export default function Admin() {
               >
                 <Package className="mr-2 h-4 w-4" />
                 Manage Products
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate("/admin/categories")}
+              >
+                <FolderOpen className="mr-2 h-4 w-4" />
+                Product Categories
               </Button>
               <Button 
                 variant="outline" 
