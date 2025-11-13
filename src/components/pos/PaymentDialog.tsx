@@ -13,10 +13,11 @@ interface PaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cartItems: CartItem[];
+  customerId?: string;
   onComplete: (saleData: SaleData) => void;
 }
 
-const PaymentDialog = ({ open, onOpenChange, cartItems, onComplete }: PaymentDialogProps) => {
+const PaymentDialog = ({ open, onOpenChange, cartItems, customerId, onComplete }: PaymentDialogProps) => {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "mpesa" | null>(null);
   const [mpesaPhone, setMpesaPhone] = useState("");
   const [mpesaReference, setMpesaReference] = useState("");
@@ -58,6 +59,7 @@ const PaymentDialog = ({ open, onOpenChange, cartItems, onComplete }: PaymentDia
         .from("sales")
         .insert([{
           cashier_id: user.id,
+          customer_id: customerId || undefined,
           subtotal,
           tax,
           discount: 0,

@@ -1,23 +1,54 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, Trash2, X } from "lucide-react";
+import { ShoppingCart, Trash2, User } from "lucide-react";
 import { CartItem } from "@/pages/admin/POS";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface CartProps {
   items: CartItem[];
   onUpdateQuantity: (id: string, quantity: number) => void;
   onRemove: (id: string) => void;
   onClear: () => void;
-  onCheckout: () => void;
+  onCheckout: (customerId?: string) => void;
 }
 
 const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartProps) => {
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const { data: customers } = useQuery({
+    queryKey: ["customers", customerSearch],
+    queryFn: async () => {
+      let query = supabase.from("customers").select("*").limit(10);
+      
+      if (customerSearch) {
+        query = query.or(`full_name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%`);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = subtotal * 0.16; // 16% VAT
   const total = subtotal + tax;
+
+  const handleCheckout = () => {
+    onCheckout(selectedCustomer?.id);
+    setSelectedCustomer(null);
+    setCustomerSearch("");
+  };
 
   return (
     <Card className="p-6 sticky top-4">
@@ -40,6 +71,66 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
       </div>
 
       <Separator className="mb-4" />
+
+      {items.length > 0 && (
+        <div className="mb-4 space-y-2">
+          <Label htmlFor="customer" className="flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Customer (Optional)
+          </Label>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="w-full justify-between"
+              >
+                {selectedCustomer ? selectedCustomer.full_name : "Select customer..."}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <Command>
+                <CommandInput 
+                  placeholder="Search customers..." 
+                  value={customerSearch}
+                  onValueChange={setCustomerSearch}
+                />
+                <CommandList>
+                  <CommandEmpty>No customer found.</CommandEmpty>
+                  <CommandGroup>
+                    {customers?.map((customer) => (
+                      <CommandItem
+                        key={customer.id}
+                        value={customer.id}
+                        onSelect={() => {
+                          setSelectedCustomer(customer);
+                          setOpen(false);
+                        }}
+                      >
+                        <div>
+                          <div className="font-medium">{customer.full_name}</div>
+                          <div className="text-sm text-muted-foreground">{customer.phone}</div>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          {selectedCustomer && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedCustomer(null)}
+              className="w-full"
+            >
+              Clear selection
+            </Button>
+          )}
+        </div>
+      )}
 
       {items.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
@@ -108,7 +199,7 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
           </div>
 
           <Button
-            onClick={onCheckout}
+            onClick={handleCheckout}
             className="w-full mt-4"
             size="lg"
           >
