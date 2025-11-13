@@ -174,9 +174,18 @@ export default function Admin() {
               <Button 
                 variant="outline" 
                 className="w-full justify-start"
+                onClick={() => navigate("/admin/analytics")}
               >
                 <BarChart3 className="mr-2 h-4 w-4" />
-                View Sales
+                View Analytics
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate("/admin/customers")}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Manage Customers
               </Button>
             </CardContent>
           </Card>

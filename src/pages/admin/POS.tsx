@@ -30,6 +30,7 @@ export interface SaleData {
   payment_reference?: string;
   customer_name?: string;
   customer_phone?: string;
+  customer_id?: string;
 }
 
 const POS = () => {
@@ -118,7 +119,7 @@ const POS = () => {
     setCartItems([]);
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = (customerId?: string) => {
     if (cartItems.length === 0) {
       toast({
         title: "Cart is empty",
@@ -127,6 +128,8 @@ const POS = () => {
       });
       return;
     }
+    // Store customer ID for the payment dialog
+    setCompletedSale(prev => ({ ...prev, customer_id: customerId } as any));
     setShowPayment(true);
   };
 
@@ -189,12 +192,13 @@ const POS = () => {
         </div>
       </div>
 
-      <PaymentDialog
-        open={showPayment}
-        onOpenChange={setShowPayment}
-        cartItems={cartItems}
-        onComplete={handlePaymentComplete}
-      />
+        <PaymentDialog
+          open={showPayment}
+          onOpenChange={setShowPayment}
+          cartItems={cartItems}
+          customerId={completedSale?.customer_id}
+          onComplete={handlePaymentComplete}
+        />
     </div>
   );
 };
