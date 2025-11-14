@@ -4,13 +4,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, Trash2, User } from "lucide-react";
+import { ShoppingCart, Trash2, User, Tag } from "lucide-react";
 import { CartItem } from "@/pages/admin/POS";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { usePromotions } from "@/hooks/usePromotions";
+import { useToast } from "@/hooks/use-toast";
 
 interface CartProps {
   items: CartItem[];
@@ -24,6 +26,10 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customerSearch, setCustomerSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const { toast } = useToast();
+  const { applyPromotion, validateCoupon } = usePromotions();
 
   const { data: customers } = useQuery({
     queryKey: ["customers", customerSearch],
@@ -41,8 +47,36 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
   });
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.16; // 16% VAT
-  const total = subtotal + tax;
+  const { discount } = applyPromotion(subtotal, items, appliedCoupon || undefined);
+  const subtotalAfterDiscount = subtotal - discount;
+  const tax = subtotalAfterDiscount * 0.16; // 16% VAT
+  const total = subtotalAfterDiscount + tax;
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a coupon code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const coupon = await validateCoupon(couponCode.trim().toUpperCase());
+    if (coupon) {
+      setAppliedCoupon(couponCode.trim().toUpperCase());
+      toast({
+        title: "Coupon Applied",
+        description: `${coupon.name} - ${coupon.discount_type === 'percentage' ? `${coupon.discount_value}%` : `KES ${coupon.discount_value}`} off`,
+      });
+    } else {
+      toast({
+        title: "Invalid Coupon",
+        description: "This coupon is invalid or has expired",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleCheckout = () => {
     onCheckout(selectedCustomer?.id);
@@ -183,10 +217,53 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
           <Separator className="my-4" />
 
           <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Tag className="h-4 w-4" />
+              Coupon Code (Optional)
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter coupon code"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                disabled={!!appliedCoupon}
+              />
+              {appliedCoupon ? (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setAppliedCoupon(null);
+                    setCouponCode("");
+                  }}
+                  size="sm"
+                >
+                  Remove
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  onClick={handleApplyCoupon}
+                  size="sm"
+                >
+                  Apply
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <Separator className="my-4" />
+
+          <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Subtotal</span>
               <span>KSh {subtotal.toFixed(2)}</span>
             </div>
+            {discount > 0 && (
+              <div className="flex justify-between text-sm text-green-600 font-medium">
+                <span>Discount</span>
+                <span>-KSh {discount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span>VAT (16%)</span>
               <span>KSh {tax.toFixed(2)}</span>
