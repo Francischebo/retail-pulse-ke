@@ -12,6 +12,7 @@ import POS from "./pages/admin/POS";
 import Categories from "./pages/admin/Categories";
 import Analytics from "./pages/admin/Analytics";
 import Customers from "./pages/admin/Customers";
+import Promotions from "./pages/admin/Promotions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/admin/users" element={<Users />} />
           <Route path="/admin/pos" element={<POS />} />
           <Route path="/admin/categories" element={<Categories />} />
+          <Route path="/admin/promotions" element={<Promotions />} />
           <Route path="/admin/analytics" element={<Analytics />} />
           <Route path="/admin/customers" element={<Customers />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
