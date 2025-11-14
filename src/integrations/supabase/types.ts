@@ -38,6 +38,39 @@ export type Database = {
         }
         Relationships: []
       }
+      customers: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           barcode: string | null
@@ -133,10 +166,72 @@ export type Database = {
         }
         Relationships: []
       }
+      promotions: {
+        Row: {
+          applicable_ids: string[] | null
+          applicable_to: string
+          coupon_code: string | null
+          created_at: string | null
+          current_uses: number | null
+          description: string | null
+          discount_type: string
+          discount_value: number
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          max_uses: number | null
+          min_purchase_amount: number | null
+          min_quantity: number | null
+          name: string
+          start_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          applicable_ids?: string[] | null
+          applicable_to?: string
+          coupon_code?: string | null
+          created_at?: string | null
+          current_uses?: number | null
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          min_purchase_amount?: number | null
+          min_quantity?: number | null
+          name: string
+          start_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          applicable_ids?: string[] | null
+          applicable_to?: string
+          coupon_code?: string | null
+          created_at?: string | null
+          current_uses?: number | null
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          min_purchase_amount?: number | null
+          min_quantity?: number | null
+          name?: string
+          start_date?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       sales: {
         Row: {
           cashier_id: string
+          coupon_code: string | null
           created_at: string | null
+          customer_id: string | null
           customer_name: string | null
           customer_phone: string | null
           discount: number | null
@@ -144,6 +239,7 @@ export type Database = {
           notes: string | null
           payment_method: Database["public"]["Enums"]["payment_method"]
           payment_reference: string | null
+          promotion_id: string | null
           sale_number: string
           subtotal: number
           tax: number | null
@@ -151,7 +247,9 @@ export type Database = {
         }
         Insert: {
           cashier_id: string
+          coupon_code?: string | null
           created_at?: string | null
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           discount?: number | null
@@ -159,6 +257,7 @@ export type Database = {
           notes?: string | null
           payment_method: Database["public"]["Enums"]["payment_method"]
           payment_reference?: string | null
+          promotion_id?: string | null
           sale_number?: string
           subtotal: number
           tax?: number | null
@@ -166,7 +265,9 @@ export type Database = {
         }
         Update: {
           cashier_id?: string
+          coupon_code?: string | null
           created_at?: string | null
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           discount?: number | null
@@ -174,12 +275,28 @@ export type Database = {
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
           payment_reference?: string | null
+          promotion_id?: string | null
           sale_number?: string
           subtotal?: number
           tax?: number | null
           total?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales_items: {
         Row: {
