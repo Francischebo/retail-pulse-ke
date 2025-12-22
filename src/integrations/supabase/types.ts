@@ -87,8 +87,11 @@ export type Database = {
           low_stock_threshold: number | null
           name: string
           price: number
+          reorder_point: number | null
+          reorder_quantity: number | null
           sku: string | null
           stock_quantity: number | null
+          supplier_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -106,8 +109,11 @@ export type Database = {
           low_stock_threshold?: number | null
           name: string
           price: number
+          reorder_point?: number | null
+          reorder_quantity?: number | null
           sku?: string | null
           stock_quantity?: number | null
+          supplier_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -125,8 +131,11 @@ export type Database = {
           low_stock_threshold?: number | null
           name?: string
           price?: number
+          reorder_point?: number | null
+          reorder_quantity?: number | null
           sku?: string | null
           stock_quantity?: number | null
+          supplier_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -135,6 +144,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -345,6 +361,92 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      stock_adjustments: {
+        Row: {
+          adjusted_by: string
+          adjustment_type: string
+          created_at: string
+          id: string
+          new_quantity: number
+          previous_quantity: number
+          product_id: string
+          quantity: number
+          reason: string | null
+          reference_number: string | null
+        }
+        Insert: {
+          adjusted_by: string
+          adjustment_type: string
+          created_at?: string
+          id?: string
+          new_quantity: number
+          previous_quantity: number
+          product_id: string
+          quantity: number
+          reason?: string | null
+          reference_number?: string | null
+        }
+        Update: {
+          adjusted_by?: string
+          adjustment_type?: string
+          created_at?: string
+          id?: string
+          new_quantity?: number
+          previous_quantity?: number
+          product_id?: string
+          quantity?: number
+          reason?: string | null
+          reference_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_adjustments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          contact_person: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
