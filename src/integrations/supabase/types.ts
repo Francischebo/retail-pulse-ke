@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: Database["public"]["Enums"]["audit_action"]
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: unknown
+          metadata: Json | null
+          new_data: Json | null
+          old_data: Json | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["audit_action"]
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          new_data?: Json | null
+          old_data?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["audit_action"]
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          new_data?: Json | null
+          old_data?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -70,6 +112,74 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          idempotency_key: string
+          initiated_at: string
+          mpesa_checkout_request_id: string | null
+          mpesa_merchant_request_id: string | null
+          mpesa_phone: string | null
+          mpesa_transaction_id: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          payment_reference: string | null
+          sale_id: string
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key: string
+          initiated_at?: string
+          mpesa_checkout_request_id?: string | null
+          mpesa_merchant_request_id?: string | null
+          mpesa_phone?: string | null
+          mpesa_transaction_id?: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          payment_reference?: string | null
+          sale_id: string
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string
+          initiated_at?: string
+          mpesa_checkout_request_id?: string | null
+          mpesa_merchant_request_id?: string | null
+          mpesa_phone?: string | null
+          mpesa_transaction_id?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          payment_reference?: string | null
+          sale_id?: string
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -244,55 +354,76 @@ export type Database = {
       }
       sales: {
         Row: {
+          amount_paid: number | null
+          balance_due: number | null
           cashier_id: string
           coupon_code: string | null
           created_at: string | null
           customer_id: string | null
           customer_name: string | null
           customer_phone: string | null
+          device_id: string | null
           discount: number | null
           id: string
+          idempotency_key: string | null
           notes: string | null
           payment_method: Database["public"]["Enums"]["payment_method"]
           payment_reference: string | null
+          payment_status: Database["public"]["Enums"]["payment_status"] | null
           promotion_id: string | null
+          receipt_printed_at: string | null
           sale_number: string
+          session_id: string | null
           subtotal: number
           tax: number | null
           total: number
         }
         Insert: {
+          amount_paid?: number | null
+          balance_due?: number | null
           cashier_id: string
           coupon_code?: string | null
           created_at?: string | null
           customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          device_id?: string | null
           discount?: number | null
           id?: string
+          idempotency_key?: string | null
           notes?: string | null
           payment_method: Database["public"]["Enums"]["payment_method"]
           payment_reference?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
           promotion_id?: string | null
+          receipt_printed_at?: string | null
           sale_number?: string
+          session_id?: string | null
           subtotal: number
           tax?: number | null
           total: number
         }
         Update: {
+          amount_paid?: number | null
+          balance_due?: number | null
           cashier_id?: string
           coupon_code?: string | null
           created_at?: string | null
           customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          device_id?: string | null
           discount?: number | null
           id?: string
+          idempotency_key?: string | null
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
           payment_reference?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
           promotion_id?: string | null
+          receipt_printed_at?: string | null
           sale_number?: string
+          session_id?: string | null
           subtotal?: number
           tax?: number | null
           total?: number
@@ -474,6 +605,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_print_receipt: { Args: { p_sale_id: string }; Returns: boolean }
       generate_sale_number: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -482,10 +614,43 @@ export type Database = {
         }
         Returns: boolean
       }
+      log_audit_event: {
+        Args: {
+          p_action: Database["public"]["Enums"]["audit_action"]
+          p_entity_id?: string
+          p_entity_type: string
+          p_metadata?: Json
+          p_new_data?: Json
+          p_old_data?: Json
+        }
+        Returns: string
+      }
+      mark_receipt_printed: { Args: { p_sale_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "manager" | "cashier"
+      audit_action:
+        | "sale_created"
+        | "sale_updated"
+        | "payment_initiated"
+        | "payment_completed"
+        | "payment_failed"
+        | "refund_initiated"
+        | "refund_completed"
+        | "stock_adjusted"
+        | "product_created"
+        | "product_updated"
+        | "user_login"
+        | "user_logout"
       payment_method: "cash" | "mpesa" | "airtel_money" | "card"
+      payment_status:
+        | "pending"
+        | "processing"
+        | "partially_paid"
+        | "paid"
+        | "failed"
+        | "refunded"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -614,7 +779,30 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "manager", "cashier"],
+      audit_action: [
+        "sale_created",
+        "sale_updated",
+        "payment_initiated",
+        "payment_completed",
+        "payment_failed",
+        "refund_initiated",
+        "refund_completed",
+        "stock_adjusted",
+        "product_created",
+        "product_updated",
+        "user_login",
+        "user_logout",
+      ],
       payment_method: ["cash", "mpesa", "airtel_money", "card"],
+      payment_status: [
+        "pending",
+        "processing",
+        "partially_paid",
+        "paid",
+        "failed",
+        "refunded",
+        "cancelled",
+      ],
     },
   },
 } as const
