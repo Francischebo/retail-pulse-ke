@@ -1,15 +1,15 @@
 // =============================================================================
-// PRODUCTION-GRADE POS SYSTEM - CUSTOM HOOK
-// Manages cart state, payment flow, and receipt printing
+// PRODUCTION-GRADE POS SYSTEM - CUSTOM HOOK WITH OFFLINE SUPPORT
+// Manages cart state, payment flow, receipt printing, and offline operations
 // =============================================================================
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import {
   CartItem,
   SaleData,
   PaymentMethod,
-  PaymentStatus,
   generateIdempotencyKey,
   safeDecimal,
   formatCurrency,
@@ -23,6 +23,8 @@ import {
   validateMpesaPhone,
 } from "@/lib/pos/payment-service";
 import { usePromotions } from "@/hooks/usePromotions";
+import { offlineStorage, PendingSale } from "@/lib/offline/storage";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UsePOSOptions {
   onSaleComplete?: (saleData: SaleData) => void;
@@ -30,6 +32,7 @@ interface UsePOSOptions {
 
 export function usePOS(options: UsePOSOptions = {}) {
   const { toast } = useToast();
+  const { isOnline } = useNetworkStatus();
   const { applyPromotion, validateCoupon } = usePromotions();
   
   // Cart state
@@ -45,6 +48,42 @@ export function usePOS(options: UsePOSOptions = {}) {
   // UI state
   const [showPayment, setShowPayment] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+
+  // Products cache for offline mode
+  const [cachedProducts, setCachedProducts] = useState<any[]>([]);
+
+  // Initialize offline storage and load cached products
+  useEffect(() => {
+    const init = async () => {
+      await offlineStorage.init();
+      const cached = await offlineStorage.getCachedProducts();
+      setCachedProducts(cached);
+    };
+    init();
+  }, []);
+
+  // Cache products when online
+  useEffect(() => {
+    if (isOnline) {
+      const cacheProducts = async () => {
+        try {
+          const { data } = await supabase
+            .from("products")
+            .select("*")
+            .eq("is_active", true)
+            .gt("stock_quantity", 0);
+          
+          if (data && data.length > 0) {
+            await offlineStorage.cacheProducts(data);
+            setCachedProducts(data);
+          }
+        } catch (error) {
+          console.error("Failed to cache products:", error);
+        }
+      };
+      cacheProducts();
+    }
+  }, [isOnline]);
 
   // Calculate totals with memoization
   const cartTotals = useMemo(() => {
@@ -165,6 +204,88 @@ export function usePOS(options: UsePOSOptions = {}) {
     return true;
   }, [cartItems, toast]);
 
+  // Save sale for offline sync
+  const saveOfflineSale = useCallback(async (params: {
+    paymentMethod: PaymentMethod;
+    customerName?: string;
+    customerPhone?: string;
+  }): Promise<SaleData | null> => {
+    const idempotencyKey = generateIdempotencyKey();
+    const saleNumber = `OFF-${Date.now().toString(36).toUpperCase()}`;
+
+    const pendingSale: PendingSale = {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      items: cartItems,
+      payment_method: params.paymentMethod,
+      customer_id: selectedCustomer?.id,
+      customer_name: params.customerName || selectedCustomer?.full_name,
+      customer_phone: params.customerPhone || selectedCustomer?.phone,
+      coupon_code: appliedCoupon || undefined,
+      discount: cartTotals.discount,
+      subtotal: cartTotals.subtotal,
+      tax: cartTotals.tax,
+      total: cartTotals.total,
+      idempotency_key: idempotencyKey,
+      synced: false,
+      sync_attempts: 0,
+    };
+
+    const saved = await offlineStorage.savePendingSale(pendingSale);
+
+    if (saved) {
+      // Update local stock cache
+      for (const item of cartItems) {
+        const product = cachedProducts.find(p => p.id === item.product_id);
+        if (product) {
+          await offlineStorage.updateCachedProductStock(
+            item.product_id,
+            product.stock_quantity - item.quantity
+          );
+        }
+      }
+
+      const saleData: SaleData = {
+        sale_id: pendingSale.id,
+        sale_number: saleNumber,
+        items: cartItems,
+        subtotal: cartTotals.subtotal,
+        tax: cartTotals.tax,
+        discount: cartTotals.discount,
+        total: cartTotals.total,
+        amount_paid: cartTotals.total,
+        balance_due: 0,
+        payment_status: 'paid',
+        payment_method: params.paymentMethod,
+        customer_name: params.customerName || selectedCustomer?.full_name,
+        customer_phone: params.customerPhone || selectedCustomer?.phone,
+        customer_id: selectedCustomer?.id,
+        idempotency_key: idempotencyKey,
+        is_offline: true,
+      };
+
+      toast({
+        title: "Sale Saved Offline",
+        description: "Sale will sync when connection is restored",
+      });
+
+      setCurrentSale(saleData);
+      setShowPayment(false);
+      setShowReceipt(true);
+      clearCart();
+
+      return saleData;
+    }
+
+    toast({
+      title: "Error",
+      description: "Failed to save offline sale",
+      variant: "destructive",
+    });
+
+    return null;
+  }, [cartItems, cartTotals, selectedCustomer, appliedCoupon, cachedProducts, clearCart, toast]);
+
   // Process complete sale with payment
   const completeSale = useCallback(async (params: {
     paymentMethod: PaymentMethod;
@@ -188,6 +309,19 @@ export function usePOS(options: UsePOSOptions = {}) {
         variant: "destructive",
       });
       return null;
+    }
+
+    // Handle offline mode - only cash payments allowed offline
+    if (!isOnline) {
+      if (params.paymentMethod !== 'cash') {
+        toast({
+          title: "Offline Mode",
+          description: "Only cash payments are available offline",
+          variant: "destructive",
+        });
+        return null;
+      }
+      return saveOfflineSale(params);
     }
 
     // Validate M-Pesa phone if applicable
@@ -245,7 +379,6 @@ export function usePOS(options: UsePOSOptions = {}) {
           description: paymentResult.error || "Could not process payment",
           variant: "destructive",
         });
-        // Sale was created but payment failed - don't clear cart
         return null;
       }
 
@@ -269,7 +402,6 @@ export function usePOS(options: UsePOSOptions = {}) {
         idempotency_key: idempotencyKey,
       };
 
-      // Check if fully paid
       if (paymentResult.is_fully_paid) {
         toast({
           title: "Payment Successful",
@@ -301,7 +433,7 @@ export function usePOS(options: UsePOSOptions = {}) {
     } finally {
       setIsProcessing(false);
     }
-  }, [cartItems, cartTotals, selectedCustomer, appliedCoupon, clearCart, toast, options]);
+  }, [cartItems, cartTotals, selectedCustomer, appliedCoupon, isOnline, saveOfflineSale, clearCart, toast, options]);
 
   // Print receipt (only if fully paid)
   const printReceipt = useCallback(async () => {
@@ -312,6 +444,12 @@ export function usePOS(options: UsePOSOptions = {}) {
         variant: "destructive",
       });
       return false;
+    }
+
+    // For offline sales, allow printing directly
+    if (currentSale.is_offline) {
+      window.print();
+      return true;
     }
 
     // Verify payment is complete before printing
@@ -325,10 +463,7 @@ export function usePOS(options: UsePOSOptions = {}) {
       return false;
     }
 
-    // Mark receipt as printed
     await markReceiptPrinted(currentSale.sale_id);
-    
-    // Trigger browser print
     window.print();
     return true;
   }, [currentSale, toast]);
@@ -352,6 +487,7 @@ export function usePOS(options: UsePOSOptions = {}) {
     cartTotals,
     selectedCustomer,
     appliedCoupon,
+    cachedProducts,
     
     // Cart actions
     addToCart,
@@ -373,6 +509,9 @@ export function usePOS(options: UsePOSOptions = {}) {
     // UI state
     showPayment,
     showReceipt,
+    
+    // Network state
+    isOnline,
     
     // Actions
     startCheckout,

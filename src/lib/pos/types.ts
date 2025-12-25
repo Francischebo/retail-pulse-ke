@@ -40,7 +40,7 @@ export interface SaleData {
   customer_phone?: string;
   customer_id?: string;
   idempotency_key?: string;
-  receipt_printed_at?: string;
+  is_offline?: boolean;
 }
 
 export interface Payment {
