@@ -1,11 +1,22 @@
-import { useState, useEffect } from "react";
+// =============================================================================
+// PRODUCT SEARCH COMPONENT - Responsive POS Product Search
+// Supports barcode scanning, search, and category filtering
+// =============================================================================
+
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Barcode } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search, Package, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { offlineStorage } from "@/lib/offline/storage";
+import { formatCurrency } from "@/lib/pos/types";
 import BarcodeScanner from "./BarcodeScanner";
+import { cn } from "@/lib/utils";
 
 interface ProductSearchProps {
   onProductSelect: (product: any) => void;
@@ -15,26 +26,29 @@ const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [products, setProducts] = useState<any[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { isOnline } = useNetworkStatus();
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [isOnline]);
 
   useEffect(() => {
     if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
       const filtered = products.filter(
         (product) =>
-          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.barcode?.includes(searchTerm) ||
-          product.sku?.includes(searchTerm)
+          product.name.toLowerCase().includes(searchLower) ||
+          product.barcode?.toLowerCase().includes(searchLower) ||
+          product.sku?.toLowerCase().includes(searchLower)
       );
       setFilteredProducts(filtered);
 
       // Auto-select if exact barcode/SKU match
       if (filtered.length === 1 && (
-        filtered[0].barcode === searchTerm || 
-        filtered[0].sku === searchTerm
+        filtered[0].barcode?.toLowerCase() === searchLower || 
+        filtered[0].sku?.toLowerCase() === searchLower
       )) {
         handleProductSelect(filtered[0]);
         setSearchTerm("");
@@ -44,25 +58,49 @@ const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
     }
   }, [searchTerm, products]);
 
-  const loadProducts = async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("is_active", true)
-      .gt("stock_quantity", 0)
-      .order("name");
+  const loadProducts = useCallback(async () => {
+    setIsLoading(true);
+    
+    try {
+      if (isOnline) {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .eq("is_active", true)
+          .gt("stock_quantity", 0)
+          .order("name");
 
-    if (error) {
-      toast({
-        title: "Error loading products",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
+        if (error) throw error;
+
+        setProducts(data || []);
+        
+        // Cache products for offline use
+        if (data && data.length > 0) {
+          await offlineStorage.cacheProducts(data);
+        }
+      } else {
+        // Load from cache when offline
+        const cached = await offlineStorage.getCachedProducts();
+        setProducts(cached.filter(p => p.is_active && p.stock_quantity > 0));
+      }
+    } catch (error: any) {
+      console.error("Error loading products:", error);
+      
+      // Fallback to cache on error
+      const cached = await offlineStorage.getCachedProducts();
+      setProducts(cached.filter(p => p.is_active && p.stock_quantity > 0));
+      
+      if (isOnline) {
+        toast({
+          title: "Error loading products",
+          description: "Using cached data",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
-
-    setProducts(data || []);
-  };
+  }, [isOnline, toast]);
 
   const handleProductSelect = (product: any) => {
     if (product.stock_quantity <= 0) {
@@ -83,54 +121,97 @@ const ProductSearch = ({ onProductSelect }: ProductSearchProps) => {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="relative flex">
+    <div className="space-y-3">
+      {/* Search Input Row */}
+      <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
           <Input
-            placeholder="Search by name, barcode, or SKU..."
+            placeholder="Search products, scan barcode..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 text-lg h-12"
+            className="pl-9 sm:pl-10 h-10 sm:h-12 text-sm sm:text-base"
             autoFocus
           />
         </div>
         <BarcodeScanner onScan={handleBarcodeScanned} />
       </div>
 
+      {/* Search Results */}
       {filteredProducts.length > 0 && (
-        <div className="max-h-96 overflow-y-auto space-y-2">
-          {filteredProducts.map((product) => (
-            <Card
-              key={product.id}
-              className="p-4 hover:bg-accent cursor-pointer transition-colors"
-              onClick={() => handleProductSelect(product)}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="font-semibold">{product.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {product.sku && `SKU: ${product.sku}`}
-                    {product.barcode && ` • Barcode: ${product.barcode}`}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant={product.stock_quantity <= product.low_stock_threshold ? "destructive" : "secondary"}>
-                      Stock: {product.stock_quantity}
-                    </Badge>
-                    {product.category && (
-                      <Badge variant="outline">{product.category}</Badge>
-                    )}
+        <Card className="absolute z-50 left-0 right-0 mx-3 sm:mx-4 mt-1 shadow-lg max-h-[60vh] overflow-hidden">
+          <ScrollArea className="max-h-[60vh]">
+            <div className="p-2 space-y-1">
+              {filteredProducts.map((product) => (
+                <Button
+                  key={product.id}
+                  variant="ghost"
+                  className={cn(
+                    "w-full justify-start h-auto py-3 px-3",
+                    "hover:bg-accent transition-colors"
+                  )}
+                  onClick={() => handleProductSelect(product)}
+                >
+                  <div className="flex items-center gap-3 w-full">
+                    {/* Product Icon */}
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <Package className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="font-medium text-sm sm:text-base truncate">
+                        {product.name}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-0.5">
+                        {product.sku && (
+                          <span className="text-xs text-muted-foreground">
+                            SKU: {product.sku}
+                          </span>
+                        )}
+                        {product.barcode && (
+                          <span className="text-xs text-muted-foreground">
+                            • {product.barcode}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Stock & Price */}
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-sm sm:text-base text-primary">
+                        {formatCurrency(parseFloat(product.price))}
+                      </p>
+                      <Badge 
+                        variant={product.stock_quantity <= (product.low_stock_threshold || 10) ? "destructive" : "secondary"}
+                        className="text-xs mt-1"
+                      >
+                        {product.stock_quantity} in stock
+                      </Badge>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xl font-bold text-primary">
-                    KSh {parseFloat(product.price).toFixed(2)}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+                </Button>
+              ))}
+            </div>
+          </ScrollArea>
+        </Card>
+      )}
+
+      {/* No Results */}
+      {searchTerm && filteredProducts.length === 0 && !isLoading && (
+        <Card className="absolute z-50 left-0 right-0 mx-3 sm:mx-4 mt-1 shadow-lg">
+          <div className="p-6 text-center text-muted-foreground">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No products found for "{searchTerm}"</p>
+          </div>
+        </Card>
+      )}
+
+      {/* Offline Indicator */}
+      {!isOnline && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          Showing cached products (offline mode)
+        </p>
       )}
     </div>
   );
