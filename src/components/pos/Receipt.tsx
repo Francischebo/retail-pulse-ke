@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { SaleData } from "@/pages/admin/POS";
+import { SaleData, formatCurrency } from "@/lib/pos/types";
 import { Printer, CheckCircle, ArrowRight } from "lucide-react";
 
 interface ReceiptProps {
@@ -37,11 +37,11 @@ const Receipt = ({ saleData, onNewSale }: ReceiptProps) => {
                     <div className="flex-1">
                       <p className="font-medium">{item.name}</p>
                       <p className="text-muted-foreground">
-                        {item.quantity} × KSh {item.price.toFixed(2)}
+                        {item.quantity} × {formatCurrency(item.price)}
                       </p>
                     </div>
                     <p className="font-medium">
-                      KSh {(item.price * item.quantity).toFixed(2)}
+                      {formatCurrency(item.price * item.quantity)}
                     </p>
                   </div>
                 ))}
@@ -53,22 +53,22 @@ const Receipt = ({ saleData, onNewSale }: ReceiptProps) => {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Subtotal</span>
-                <span>KSh {saleData.subtotal.toFixed(2)}</span>
+                <span>{formatCurrency(saleData.subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>VAT (16%)</span>
-                <span>KSh {saleData.tax.toFixed(2)}</span>
+                <span>{formatCurrency(saleData.tax)}</span>
               </div>
               {saleData.discount > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Discount</span>
-                  <span>-KSh {saleData.discount.toFixed(2)}</span>
+                  <span>-{formatCurrency(saleData.discount)}</span>
                 </div>
               )}
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
-                <span className="text-primary">KSh {saleData.total.toFixed(2)}</span>
+                <span className="text-primary">{formatCurrency(saleData.total)}</span>
               </div>
             </div>
 
