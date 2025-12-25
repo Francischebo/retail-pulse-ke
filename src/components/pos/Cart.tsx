@@ -5,31 +5,45 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, Trash2, User, Tag } from "lucide-react";
-import { CartItem } from "@/pages/admin/POS";
+import { CartItem } from "@/lib/pos/types";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { usePromotions } from "@/hooks/usePromotions";
-import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/pos/types";
 
 interface CartProps {
   items: CartItem[];
   onUpdateQuantity: (id: string, quantity: number) => void;
   onRemove: (id: string) => void;
   onClear: () => void;
-  onCheckout: (customerId?: string) => void;
+  onCheckout: () => void;
+  selectedCustomer?: any;
+  onCustomerChange?: (customer: any) => void;
+  appliedCoupon?: string | null;
+  onApplyCoupon?: (code: string) => Promise<boolean>;
+  onRemoveCoupon?: () => void;
+  discount?: number;
 }
 
-const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartProps) => {
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+const Cart = ({ 
+  items, 
+  onUpdateQuantity, 
+  onRemove, 
+  onClear, 
+  onCheckout,
+  selectedCustomer,
+  onCustomerChange,
+  appliedCoupon,
+  onApplyCoupon,
+  onRemoveCoupon,
+  discount = 0,
+}: CartProps) => {
   const [customerSearch, setCustomerSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
-  const { toast } = useToast();
-  const { applyPromotion, validateCoupon } = usePromotions();
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   const { data: customers } = useQuery({
     queryKey: ["customers", customerSearch],
@@ -47,41 +61,24 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
   });
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const { discount } = applyPromotion(subtotal, items, appliedCoupon || undefined);
   const subtotalAfterDiscount = subtotal - discount;
   const tax = subtotalAfterDiscount * 0.16; // 16% VAT
   const total = subtotalAfterDiscount + tax;
 
   const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a coupon code",
-        variant: "destructive",
-      });
-      return;
+    if (!couponCode.trim() || !onApplyCoupon) return;
+    
+    setIsApplyingCoupon(true);
+    const success = await onApplyCoupon(couponCode.trim().toUpperCase());
+    if (success) {
+      setCouponCode("");
     }
-
-    const coupon = await validateCoupon(couponCode.trim().toUpperCase());
-    if (coupon) {
-      setAppliedCoupon(couponCode.trim().toUpperCase());
-      toast({
-        title: "Coupon Applied",
-        description: `${coupon.name} - ${coupon.discount_type === 'percentage' ? `${coupon.discount_value}%` : `KES ${coupon.discount_value}`} off`,
-      });
-    } else {
-      toast({
-        title: "Invalid Coupon",
-        description: "This coupon is invalid or has expired",
-        variant: "destructive",
-      });
-    }
+    setIsApplyingCoupon(false);
   };
 
-  const handleCheckout = () => {
-    onCheckout(selectedCustomer?.id);
-    setSelectedCustomer(null);
-    setCustomerSearch("");
+  const handleRemoveCoupon = () => {
+    onRemoveCoupon?.();
+    setCouponCode("");
   };
 
   return (
@@ -106,7 +103,7 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
 
       <Separator className="mb-4" />
 
-      {items.length > 0 && (
+      {items.length > 0 && onCustomerChange && (
         <div className="mb-4 space-y-2">
           <Label htmlFor="customer" className="flex items-center gap-2">
             <User className="h-4 w-4" />
@@ -138,7 +135,7 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
                         key={customer.id}
                         value={customer.id}
                         onSelect={() => {
-                          setSelectedCustomer(customer);
+                          onCustomerChange(customer);
                           setOpen(false);
                         }}
                       >
@@ -157,7 +154,7 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setSelectedCustomer(null)}
+              onClick={() => onCustomerChange(null)}
               className="w-full"
             >
               Clear selection
@@ -180,7 +177,7 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium truncate">{item.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      KSh {item.price.toFixed(2)} each
+                      {formatCurrency(item.price)} each
                     </p>
                     <div className="flex items-center gap-2 mt-2">
                       <Input
@@ -198,7 +195,7 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
                   </div>
                   <div className="text-right">
                     <p className="font-semibold">
-                      KSh {(item.price * item.quantity).toFixed(2)}
+                      {formatCurrency(item.price * item.quantity)}
                     </p>
                     <Button
                       variant="ghost"
@@ -216,67 +213,72 @@ const Cart = ({ items, onUpdateQuantity, onRemove, onClear, onCheckout }: CartPr
 
           <Separator className="my-4" />
 
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Tag className="h-4 w-4" />
-              Coupon Code (Optional)
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Enter coupon code"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                disabled={!!appliedCoupon}
-              />
-              {appliedCoupon ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setAppliedCoupon(null);
-                    setCouponCode("");
-                  }}
-                  size="sm"
-                >
-                  Remove
-                </Button>
-              ) : (
-                <Button 
-                  variant="outline" 
-                  onClick={handleApplyCoupon}
-                  size="sm"
-                >
-                  Apply
-                </Button>
+          {onApplyCoupon && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Coupon Code (Optional)
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter coupon code"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  disabled={!!appliedCoupon || isApplyingCoupon}
+                />
+                {appliedCoupon ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleRemoveCoupon}
+                    size="sm"
+                  >
+                    Remove
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleApplyCoupon}
+                    size="sm"
+                    disabled={isApplyingCoupon}
+                  >
+                    Apply
+                  </Button>
+                )}
+              </div>
+              {appliedCoupon && (
+                <Badge variant="secondary" className="text-green-600">
+                  Coupon: {appliedCoupon}
+                </Badge>
               )}
             </div>
-          </div>
+          )}
 
           <Separator className="my-4" />
 
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Subtotal</span>
-              <span>KSh {subtotal.toFixed(2)}</span>
+              <span>{formatCurrency(subtotal)}</span>
             </div>
             {discount > 0 && (
               <div className="flex justify-between text-sm text-green-600 font-medium">
                 <span>Discount</span>
-                <span>-KSh {discount.toFixed(2)}</span>
+                <span>-{formatCurrency(discount)}</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
               <span>VAT (16%)</span>
-              <span>KSh {tax.toFixed(2)}</span>
+              <span>{formatCurrency(tax)}</span>
             </div>
             <Separator />
             <div className="flex justify-between font-bold text-lg">
               <span>Total</span>
-              <span className="text-primary">KSh {total.toFixed(2)}</span>
+              <span className="text-primary">{formatCurrency(total)}</span>
             </div>
           </div>
 
           <Button
-            onClick={handleCheckout}
+            onClick={onCheckout}
             className="w-full mt-4"
             size="lg"
           >
