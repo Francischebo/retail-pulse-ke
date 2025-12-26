@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Search, Edit, ArrowLeft, UserCog } from "lucide-react";
+import { Loader2, Plus, Search, UserCog, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -16,6 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { UserForm } from "@/components/admin/UserForm";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { sanitizeSearchInput } from "@/lib/security/validation";
 
 interface UserProfile {
   id: string;
@@ -96,23 +98,24 @@ export default function Users() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <AdminLayout title="User Management">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
     );
   }
 
   if (showForm) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
+      <AdminLayout title={editingUser ? "Edit User" : "Add User"}>
+        <div className="space-y-4">
           <Button
             variant="ghost"
             onClick={() => {
               setShowForm(false);
               setEditingUser(null);
             }}
-            className="mb-4"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Users
@@ -126,28 +129,19 @@ export default function Users() {
             }}
           />
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">User Management</h1>
-            <p className="text-muted-foreground">Manage cashiers and staff members</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate("/admin")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Dashboard
-            </Button>
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add User
-            </Button>
-          </div>
+    <AdminLayout title="User Management">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <p className="text-muted-foreground">Manage cashiers and staff members</p>
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add User
+          </Button>
         </div>
 
         <Card>
@@ -218,6 +212,6 @@ export default function Users() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AdminLayout>
   );
 }
