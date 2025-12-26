@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Search, AlertTriangle, Edit, Trash2, ArrowLeft, FolderOpen } from "lucide-react";
+import { Loader2, Plus, Search, AlertTriangle, Edit, Trash2, FolderOpen, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ProductForm } from "@/components/admin/ProductForm";
 import BulkCategoryAssignment from "@/components/admin/BulkCategoryAssignment";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { sanitizeSearchInput } from "@/lib/security/validation";
 
 interface Product {
   id: string;
@@ -200,23 +202,24 @@ export default function Products() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <AdminLayout title="Product Management">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
     );
   }
 
   if (showForm) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
+      <AdminLayout title={editingProduct ? "Edit Product" : "Add Product"}>
+        <div className="space-y-4">
           <Button
             variant="ghost"
             onClick={() => {
               setShowForm(false);
               setEditingProduct(null);
             }}
-            className="mb-4"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Products
@@ -230,26 +233,19 @@ export default function Products() {
             }}
           />
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Product Management</h1>
-            <p className="text-muted-foreground">Manage your inventory and products</p>
-          </div>
-          <div className="flex gap-2">
+    <AdminLayout title="Product Management">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <p className="text-muted-foreground">Manage your inventory and products</p>
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => navigate("/admin/categories")}>
               <FolderOpen className="mr-2 h-4 w-4" />
               Categories
-            </Button>
-            <Button variant="outline" onClick={() => navigate("/admin")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Dashboard
             </Button>
             <Button onClick={() => setShowForm(true)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -456,6 +452,6 @@ export default function Products() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </div>
+    </AdminLayout>
   );
 }
